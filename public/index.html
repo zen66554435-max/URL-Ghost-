@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Site Crawler</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b0d10;color:#e9edf2;font-family:system-ui,-apple-system,Segoe UI,Tahoma,sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:32px 18px}.hero{margin-bottom:22px}.hero h1{font-size:32px;margin:0 0 8px}.hero p{color:#9ca6b2;margin:0}
+.card{background:#12161b;border:1px solid #232a33;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 8px 30px #0002}
+.form{display:grid;grid-template-columns:1fr 130px 130px 130px;gap:10px}.input,.btn{height:46px;border-radius:10px;border:1px solid #303844;background:#0d1116;color:#fff;padding:0 14px;font-size:15px}.btn{cursor:pointer;background:#e9edf2;color:#0b0d10;font-weight:700}.btn.secondary{background:#1b2129;color:#e9edf2}.btn.danger{background:#3a171a;color:#ffb5ba}
+.opts{display:flex;gap:18px;flex-wrap:wrap;margin-top:13px;color:#aeb7c2;font-size:14px}.opts label{display:flex;gap:7px;align-items:center}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:#0d1116;border:1px solid #252c35;border-radius:12px;padding:14px}.stat b{display:block;font-size:24px}.stat span{color:#8f99a5;font-size:13px}
+.progress{height:8px;background:#252b33;border-radius:99px;overflow:hidden;margin:14px 0}.bar{height:100%;width:0;background:#e9edf2;transition:.2s}
+.statusline{display:flex;justify-content:space-between;gap:12px;color:#9ca6b2;font-size:14px}
+.tablewrap{overflow:auto;max-height:560px;border:1px solid #252c35;border-radius:10px}.table{width:100%;border-collapse:collapse;min-width:900px;font-size:13px}.table th,.table td{padding:10px;border-bottom:1px solid #20262e;text-align:right;vertical-align:top}.table th{position:sticky;top:0;background:#151a20;color:#aeb7c2}.url{max-width:390px;word-break:break-all}.ok{color:#72d69b}.bad{color:#ff8089}.muted{color:#7f8995}.hidden{display:none}@media(max-width:850px){.form{grid-template-columns:1fr 1fr}.form .wide{grid-column:1/-1}.stats{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>Site Crawler</h1>
+    <p>أدخل رابط موقع لاكتشاف الصفحات الداخلية والروابط وحالات HTTP.</p>
+  </div>
+
+  <div class="card">
+    <form id="form">
+      <input class="input wide" id="url" placeholder="https://example.com" required>
+      <input class="input" id="maxPages" type="number" min="1" max="10000" value="1000" title="الحد الأقصى للصفحات">
+      <input class="input" id="concurrency" type="number" min="1" max="10" value="3" title="عدد الطلبات المتوازية">
+      <button class="btn" id="start">ابدأ البحث</button>
+    </form>
+    <div class="opts">
+      <label><input id="sitemap" type="checkbox" checked> استخدم sitemap.xml</label>
+      <label><input id="robots" type="checkbox" checked> احترم robots.txt</label>
+      <label>Delay <input class="input" id="delay" type="number" min="0" max="5000" value="100" style="width:90px;height:32px"> ms</label>
+    </div>
+  </div>
+
+  <div id="runCard" class="card hidden">
+    <div class="statusline"><span id="status">جاري البحث...</span><span id="current"></span></div>
+    <div class="progress"><div id="bar" class="bar"></div></div>
+    <div class="stats">
+      <div class="stat"><b id="count">0</b><span>صفحة مكتشفة</span></div>
+      <div class="stat"><b id="ok">0</b><span>2xx</span></div>
+      <div class="stat"><b id="redirect">0</b><span>3xx</span></div>
+      <div class="stat"><b id="errors">0</b><span>4xx/5xx/Errors</span></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px">
+      <button class="btn secondary" id="cancel">إيقاف</button>
+      <button class="btn secondary" id="csv" disabled>تصدير CSV</button>
+    </div>
+  </div>
+
+  <div id="resultsCard" class="card hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <b>الصفحات</b><span class="muted" id="summary"></span>
+    </div>
+    <div class="tablewrap">
+      <table class="table">
+        <thead><tr><th>#</th><th>URL</th><th>Status</th><th>Title</th><th>Canonical</th><th>Links</th><th>Source</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let jobId=null, timer=null;
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function render(data){
+  const rows=data.results||[];
+  $("count").textContent=rows.length;
+  $("ok").textContent=rows.filter(x=>x.status>=200&&x.status<300).length;
+  $("redirect").textContent=rows.filter(x=>x.status>=300&&x.status<400).length;
+  $("errors").textContent=rows.filter(x=>x.status===0||x.status>=400).length;
+  $("current").textContent=data.current||"";
+  const pct=data.maxPages?Math.min(100,rows.length/data.maxPages*100):0;
+  $("bar").style.width=pct+"%";
+  $("tbody").innerHTML=rows.map((r,i)=>{
+    const cls=r.status>=200&&r.status<400?"ok":"bad";
+    return `<tr><td>${i+1}</td><td class="url">${esc(r.url)}</td><td class="${cls}">${esc(r.status||"ERR")} ${esc(r.statusText||"")}<br><span class="muted">${esc(r.error||"")}</span></td><td>${esc(r.title)}</td><td class="url">${esc(r.canonical)}</td><td>${esc(r.links)}</td><td class="url muted">${esc(r.source)}</td></tr>`;
+  }).join("");
+  $("summary").textContent=`${rows.length} / ${data.maxPages}`;
+  if(data.status==="done"||data.status==="cancelled"||data.status==="error"){
+    $("status").textContent=data.status==="done"?"اكتمل البحث":data.status==="cancelled"?"تم الإيقاف":"حدث خطأ";
+    $("csv").disabled=false;
+    clearInterval(timer); timer=null;
+  } else $("status").textContent="جاري البحث...";
+}
+async function poll(){
+  const r=await fetch("/api/crawl/"+jobId); const d=await r.json();
+  if(!r.ok){clearInterval(timer);alert(d.error||"خطأ");return}
+  render(d);
+}
+$("form").addEventListener("submit",async e=>{
+  e.preventDefault(); $("start").disabled=true;
+  $("runCard").classList.remove("hidden"); $("resultsCard").classList.remove("hidden");
+  $("csv").disabled=true;
+  const body={url:$("url").value,maxPages:$("maxPages").value,concurrency:$("concurrency").value,delay:$("delay").value,useSitemap:$("sitemap").checked,respectRobots:$("robots").checked};
+  const r=await fetch("/api/crawl",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const d=await r.json();
+  $("start").disabled=false;
+  if(!r.ok){alert(d.error||"تعذر بدء البحث");return}
+  jobId=d.id; $("csv").onclick=()=>location.href="/api/crawl/"+jobId+"/csv";
+  if(timer)clearInterval(timer); timer=setInterval(poll,700); poll();
+});
+$("cancel").onclick=async()=>{if(jobId)await fetch("/api/crawl/"+jobId+"/cancel",{method:"POST"});};
+</script>
+</body>
+</html>
