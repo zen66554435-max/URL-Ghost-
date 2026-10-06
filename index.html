@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="description" content="زاحف المواقع — اكتشاف دقيق لصفحات أي موقع: الحالات، السرعة، canonical، noindex، sitemap وrobots.txt">
+<title>زاحف المواقع — اكتشاف دقيق لكل صفحات موقعك</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0a;
+  --surface:#121212;
+  --surface-2:#1a1a1a;
+  --surface-3:#202020;
+  --border:rgba(255,255,255,.08);
+  --border-strong:rgba(255,255,255,.14);
+  --mint:#00d9a3;
+  --mint-dim:rgba(0,217,163,.14);
+  --red:#ff5a5a;
+  --amber:#ffc107;
+  --green:#3ddc84;
+  --text:#f4f6f5;
+  --muted:#9ca3af;
+  --dim:#6b7280;
+  --font-ar:"Tajawal",-apple-system,"Segoe UI",Tahoma,sans-serif;
+  --font-display:"Space Grotesk","Tajawal",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"Courier New",monospace;
+  --ease:cubic-bezier(.25,.46,.45,.94);
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-ar);
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(720px 380px at 85% -8%,rgba(0,217,163,.07),transparent 65%),
+    radial-gradient(560px 320px at 8% 4%,rgba(0,217,163,.045),transparent 60%);
+}
+::selection{background:rgba(0,217,163,.28)}
+:focus-visible{outline:2px solid var(--mint);outline-offset:2px;border-radius:6px}
+button{font-family:inherit}
+input{font-family:inherit}
+
+/* ---------- scrollbars ---------- */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.22)}
+
+/* ---------- top bar ---------- */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px clamp(16px,4vw,40px);
+  background:rgba(10,10,10,.72);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border);
+}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand .mark{flex:none;width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--border-strong);border-radius:12px;background:linear-gradient(160deg,var(--surface-2),var(--surface))}
+.brand b{font-size:17px;font-weight:800;display:block;line-height:1.2}
+.brand span{font-family:var(--font-display);font-size:9.5px;letter-spacing:.32em;color:var(--dim);display:block;direction:ltr;text-align:right}
+.live-chip{
+  display:flex;align-items:center;gap:8px;
+  font-size:12.5px;font-weight:700;color:var(--mint);
+  background:var(--mint-dim);border:1px solid rgba(0,217,163,.3);
+  padding:7px 13px;border-radius:99px;white-space:nowrap;
+}
+.live-chip[hidden]{display:none}
+.live-chip .num{font-family:var(--font-display);font-weight:700;letter-spacing:.04em}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--mint);position:relative;flex:none}
+.pulse::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--mint);animation:pulse 1.6s var(--ease) infinite}
+@keyframes pulse{0%{transform:scale(.5);opacity:1}100%{transform:scale(1.5);opacity:0}}
+.pulse.idle{background:var(--dim)}.pulse.idle::after{display:none}
+
+/* ---------- layout ---------- */
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:clamp(20px,4vw,44px) clamp(14px,3.5vw,32px) 64px;display:flex;flex-direction:column;gap:18px}
+
+/* ---------- hero ---------- */
+.hero{padding:clamp(14px,3vw,34px) 4px clamp(4px,1vw,10px)}
+.hero h1{
+  font-size:clamp(28px,5.2vw,52px);font-weight:900;line-height:1.25;letter-spacing:-.01em;
+  max-width:20ch;
+}
+.hero h1 em{font-style:normal;color:var(--mint);position:relative;white-space:nowrap}
+.hero h1 em::after{content:"";position:absolute;right:0;left:0;bottom:.06em;height:.14em;background:var(--mint-dim);border-radius:99px}
+.hero p{color:var(--muted);font-size:clamp(14px,1.8vw,16.5px);line-height:1.9;max-width:64ch;margin-top:14px}
+.hero p b{color:var(--text);font-weight:700}
+
+/* ---------- cards ---------- */
+.card{
+  background:linear-gradient(170deg,var(--surface-2),var(--surface));
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:clamp(16px,2.6vw,26px);
+  box-shadow:0 18px 50px rgba(0,0,0,.35);
+}
+.card[hidden]{display:none}
+
+/* ---------- form ---------- */
+.url-row{display:grid;grid-template-columns:1fr auto;gap:10px}
+.url-field{
+  display:flex;align-items:center;gap:10px;
+  background:var(--bg);border:1px solid var(--border-strong);border-radius:13px;
+  padding:0 14px;height:54px;transition:border-color .2s var(--ease),box-shadow .2s var(--ease);
+}
+.url-field:focus-within{border-color:var(--mint);box-shadow:0 0 0 3px rgba(0,217,163,.14)}
+.url-field svg{flex:none;color:var(--dim)}
+.url-field input{
+  flex:1;min-width:0;background:none;border:0;outline:0;color:var(--text);
+  font-family:var(--font-mono);font-size:14.5px;direction:ltr;text-align:left;height:100%;
+}
+.url-field input::placeholder{color:var(--dim)}
+.btn-primary{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  height:54px;padding:0 26px;border:0;border-radius:13px;cursor:pointer;
+  background:var(--mint);color:#04110c;font-weight:800;font-size:15.5px;
+  transition:transform .18s var(--ease),box-shadow .18s var(--ease),opacity .18s;
+  box-shadow:0 6px 22px rgba(0,217,163,.22);
+  white-space:nowrap;
+}
+.btn-primary:hover:not(:disabled){transform:translateY(-1.5px);box-shadow:0 10px 28px rgba(0,217,163,.3)}
+.btn-primary:active:not(:disabled){transform:translateY(0)}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+
+.adv-toggle{
+  margin-top:14px;background:none;border:0;cursor:pointer;color:var(--muted);
+  font-size:13.5px;font-weight:700;display:inline-flex;align-items:center;gap:7px;
+  padding:6px 2px;transition:color .18s;
+}
+.adv-toggle:hover{color:var(--mint)}
+.adv-toggle .chev{transition:transform .25s var(--ease)}
+.adv-toggle.open .chev{transform:rotate(180deg)}
+.adv{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px;
+  margin-top:8px;padding-top:18px;border-top:1px dashed var(--border-strong);
+  overflow:hidden;
+}
+.adv.collapsed{display:none}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:7px}
+.field .hint{display:block;font-size:11px;color:var(--dim);margin-top:5px}
+.field input[type=number]{
+  width:100%;height:44px;background:var(--bg);border:1px solid var(--border-strong);
+  border-radius:11px;color:var(--text);padding:0 12px;font-family:var(--font-display);
+  font-size:14px;outline:0;transition:border-color .18s;direction:ltr;text-align:center;
+}
+.field input[type=number]:focus{border-color:var(--mint)}
+.switches{grid-column:1/-1;display:flex;gap:12px;flex-wrap:wrap;margin-top:2px}
+.switch{
+  display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;
+  background:var(--bg);border:1px solid var(--border-strong);border-radius:12px;
+  padding:10px 14px;font-size:13.5px;font-weight:700;color:var(--muted);
+  transition:border-color .18s,color .18s;
+}
+.switch:hover{border-color:rgba(0,217,163,.4)}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.switch .track{
+  width:36px;height:20px;border-radius:99px;background:var(--surface-3);
+  position:relative;flex:none;transition:background .2s var(--ease);
+}
+.switch .track::after{
+  content:"";position:absolute;top:2.5px;inset-inline-start:3px;width:15px;height:15px;
+  border-radius:50%;background:var(--dim);transition:transform .22s var(--ease),background .2s;
+}
+.switch input:checked~.track{background:rgba(0,217,163,.25)}
+.switch input:checked~.track::after{transform:translateX(-15px);background:var(--mint)}
+.switch input:checked~.lbl{color:var(--text)}
+
+/* ---------- run card ---------- */
+.run-head{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.run-title{display:flex;align-items:center;gap:11px;font-size:16px;font-weight:800}
+.run-title .pct{font-family:var(--font-display);font-weight:700;font-size:15px;color:var(--mint);margin-inline-start:auto;direction:ltr}
+.current{
+  font-family:var(--font-mono);font-size:12px;color:var(--dim);direction:ltr;text-align:left;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:18px;
+}
+.current:empty::before{content:"—"}
+.progress{height:9px;background:var(--surface-3);border-radius:99px;overflow:hidden;position:relative}
+.bar{
+  height:100%;width:0;border-radius:99px;
+  background:linear-gradient(90deg,#00805f,var(--mint));
+  transition:width .35s var(--ease);position:relative;
+}
+.bar::after{
+  content:"";position:absolute;inset:0;border-radius:99px;
+  background:linear-gradient(90deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);
+  background-size:200% 100%;animation:shimmer 1.4s linear infinite;
+}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.progress.done .bar::after{display:none}
+
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:16px}
+.stat{
+  background:var(--bg);border:1px solid var(--border);border-radius:13px;
+  padding:14px 14px 12px;position:relative;overflow:hidden;min-width:0;
+}
+.stat::before{content:"";position:absolute;top:0;right:0;left:0;height:2.5px;background:var(--c,var(--dim));opacity:.85}
+.stat b{font-family:var(--font-display);font-size:clamp(19px,2.4vw,25px);font-weight:700;display:block;line-height:1.15;direction:ltr;text-align:right;font-variant-numeric:tabular-nums}
+.stat span{color:var(--dim);font-size:11.5px;font-weight:700;display:block;margin-top:3px}
+.stat.c-mint{--c:var(--mint)}.stat.c-green{--c:var(--green)}.stat.c-amber{--c:var(--amber)}.stat.c-red{--c:var(--red)}.stat.c-gray{--c:var(--dim)}
+
+.run-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+.btn-ghost{
+  display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 18px;
+  background:var(--surface-3);border:1px solid var(--border-strong);border-radius:11px;
+  color:var(--text);font-weight:700;font-size:13.5px;cursor:pointer;
+  transition:background .18s,border-color .18s,transform .18s var(--ease);
+}
+.btn-ghost:hover:not(:disabled){border-color:rgba(255,255,255,.3);transform:translateY(-1px)}
+.btn-ghost:disabled{opacity:.4;cursor:not-allowed}
+.btn-ghost.danger{color:#ffb4b4;border-color:rgba(255,90,90,.3);background:rgba(255,90,90,.08)}
+.btn-ghost.danger:hover:not(:disabled){border-color:rgba(255,90,90,.6);background:rgba(255,90,90,.14)}
+.btn-ghost.mint{color:var(--mint);border-color:rgba(0,217,163,.3);background:var(--mint-dim)}
+.btn-ghost.mint:hover:not(:disabled){border-color:rgba(0,217,163,.55)}
+
+/* ---------- results ---------- */
+.results-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.results-head h2{font-size:17px;font-weight:800;display:flex;align-items:baseline;gap:9px}
+.results-head h2 .count{font-family:var(--font-display);font-size:12px;color:var(--dim);font-weight:500;direction:ltr}
+.head-tools{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.search{
+  display:flex;align-items:center;gap:8px;background:var(--bg);
+  border:1px solid var(--border-strong);border-radius:11px;padding:0 12px;height:40px;
+  transition:border-color .18s;min-width:min(260px,100%);
+}
+.search:focus-within{border-color:var(--mint)}
+.search input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--text);font-size:13px;height:100%}
+.search input::placeholder{color:var(--dim)}
+select.sort{
+  height:40px;background:var(--bg);border:1px solid var(--border-strong);border-radius:11px;
+  color:var(--muted);font-family:inherit;font-weight:700;font-size:12.5px;padding:0 10px;
+  outline:0;cursor:pointer;
+}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;
+  border-radius:99px;border:1px solid var(--border-strong);background:var(--bg);
+  color:var(--muted);font-size:12.5px;font-weight:700;cursor:pointer;
+  transition:all .18s var(--ease);white-space:nowrap;
+}
+.chip .n{font-family:var(--font-display);font-size:11.5px;font-weight:700;direction:ltr}
+.chip:hover{border-color:rgba(255,255,255,.28);color:var(--text)}
+.chip.active{background:var(--mint-dim);border-color:rgba(0,217,163,.5);color:var(--mint)}
+
+.tablewrap{overflow:auto;border:1px solid var(--border);border-radius:13px;max-height:600px;background:var(--bg)}
+table{width:100%;border-collapse:collapse;min-width:980px;font-size:12.5px}
+thead th{
+  position:sticky;top:0;z-index:2;background:var(--surface-2);color:var(--dim);
+  font-size:11px;font-weight:800;text-align:right;padding:11px 12px;
+  border-bottom:1px solid var(--border-strong);white-space:nowrap;
+}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:rgba(255,255,255,.025)}
+tbody tr.fresh{animation:rowIn .4s var(--ease)}
+@keyframes rowIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+td.idx{font-family:var(--font-display);color:var(--dim);font-size:11px;width:1%}
+td.urlcell{max-width:330px}
+.u{
+  font-family:var(--font-mono);font-size:11.5px;direction:ltr;text-align:left;
+  word-break:break-all;color:#cfd6dd;display:block;line-height:1.55;
+}
+.u.final{color:var(--dim);font-size:10.5px;margin-top:3px}
+.u.final b{color:var(--amber);font-weight:500}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.badge{
+  font-family:var(--font-mono);font-size:9.5px;font-weight:500;padding:2.5px 8px;
+  border-radius:99px;letter-spacing:.02em;white-space:nowrap;
+}
+.badge.noindex{background:rgba(255,90,90,.12);color:#ff9b9b;border:1px solid rgba(255,90,90,.28)}
+.badge.canon{background:rgba(255,193,7,.1);color:#ffd76a;border:1px solid rgba(255,193,7,.25)}
+.badge.map{background:rgba(0,217,163,.08);color:var(--mint);border:1px solid rgba(0,217,163,.22)}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;font-family:var(--font-display);
+  font-size:12px;font-weight:700;padding:4px 11px;border-radius:99px;white-space:nowrap;direction:ltr;
+}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.ok{background:rgba(61,220,132,.1);color:var(--green)}
+.pill.redir{background:rgba(255,193,7,.1);color:var(--amber)}
+.pill.err{background:rgba(255,90,90,.1);color:var(--red)}
+.pill.fail{background:rgba(255,255,255,.05);color:var(--muted)}
+td .sub{display:block;font-size:10.5px;color:var(--dim);margin-top:3px;font-family:var(--font-mono);direction:ltr;text-align:left}
+td.titlecell{max-width:260px}
+td.titlecell .t{display:block;line-height:1.55;color:var(--muted)}
+td.titlecell .t:empty::before{content:"—";color:var(--surface-3)}
+td.num{font-family:var(--font-display);font-weight:500;direction:ltr;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ms-fast{color:var(--green)}.ms-mid{color:var(--amber)}.ms-slow{color:var(--red)}
+.empty{padding:44px 16px;text-align:center;color:var(--dim);font-size:13.5px;font-weight:700}
+.cap-note{
+  padding:10px 14px;font-size:11.5px;color:var(--dim);border-top:1px solid var(--border);
+  background:var(--surface);text-align:center;font-weight:700;
+}
+.foot{color:var(--dim);font-size:12px;line-height:2;text-align:center;padding:10px 8px 0}
+.foot b{color:var(--muted)}
+
+/* ---------- toast ---------- */
+.toast{
+  position:fixed;bottom:22px;right:50%;transform:translate(50%,18px);z-index:99;
+  background:#221314;border:1px solid rgba(255,90,90,.4);color:#ffc9c9;
+  padding:13px 20px;border-radius:13px;font-size:13.5px;font-weight:700;
+  opacity:0;pointer-events:none;transition:opacity .25s var(--ease),transform .25s var(--ease);
+  box-shadow:0 12px 34px rgba(0,0,0,.5);max-width:min(92vw,480px);text-align:center;
+}
+.toast.show{opacity:1;transform:translate(50%,0)}
+
+/* ---------- responsive ---------- */
+@media(max-width:960px){
+  .stats{grid-template-columns:repeat(3,1fr)}
+  .adv{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:640px){
+  .url-row{grid-template-columns:1fr}
+  .btn-primary{width:100%;height:50px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .adv{grid-template-columns:1fr 1fr;gap:10px}
+  .results-head{flex-direction:column;align-items:stretch}
+  .head-tools{width:100%}
+  .search{flex:1}
+  .filters{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none}
+  .filters::-webkit-scrollbar{display:none}
+  .run-actions .btn-ghost{flex:1;justify-content:center;padding:0 10px}
+  .brand span{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00d9a3" stroke-width="1.7" stroke-linecap="round">
+        <circle cx="12" cy="12" r="9" opacity=".35"/>
+        <circle cx="12" cy="12" r="5" opacity=".6"/>
+        <circle cx="12" cy="12" r="1.4" fill="#00d9a3" stroke="none"/>
+        <path d="M12 12 L18.5 5.5"/>
+        <circle cx="18.5" cy="5.5" r="1.5" fill="#00d9a3" stroke="none"/>
+      </svg>
+    </span>
+    <div>
+      <b>زاحف المواقع</b>
+      <span>SITE&nbsp;CRAWLER</span>
+    </div>
+  </div>
+  <div class="live-chip" id="liveChip" hidden>
+    <span class="pulse"></span>
+    جارٍ الزحف
+    <span class="num" id="liveTimer">00:00</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>اكتشف <em>كل صفحة</em> في موقعك، بدقة وبوضوح</h1>
+    <p>أداة زحف تعمل داخل نطاق واحد: تقرأ <b>sitemap.xml</b> وتحترم <b>robots.txt</b>، وتقيس لكل صفحة <b>الحالة</b> و<b>زمن الاستجابة</b> و<b>العنوان</b> وعلاقة <b>canonical</b> و<b>noindex</b> — ثم تصدّر كل شيء إلى CSV أو JSON.</p>
+  </section>
+
+  <section class="card">
+    <form id="form" novalidate>
+      <div class="url-row">
+        <div class="url-field">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.7 2.6 4 5.6 4 9s-1.3 6.4-4 9c-2.7-2.6-4-5.6-4-9s1.3-6.4 4-9z"/>
+          </svg>
+          <input id="url" type="text" inputmode="url" placeholder="https://example.com" autocomplete="off" spellcheck="false">
+        </div>
+        <button class="btn-primary" id="startBtn" type="submit">
+          ابدأ الزحف
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:scaleX(-1)"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+      <button type="button" class="adv-toggle" id="advToggle" aria-expanded="false">
+        إعدادات متقدمة
+        <svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+
+      <div class="adv collapsed" id="adv">
+        <div class="field">
+          <label for="maxPages">الحد الأقصى للصفحات</label>
+          <input id="maxPages" type="number" min="1" max="10000" value="1000">
+          <span class="hint">من 1 إلى 10,000 صفحة</span>
+        </div>
+        <div class="field">
+          <label for="concurrency">طلبات متوازية</label>
+          <input id="concurrency" type="number" min="1" max="10" value="3">
+          <span class="hint">أعلى = أسرع وأثقل على الخادم</span>
+        </div>
+        <div class="field">
+          <label for="delay">التأخير بين الطلبات</label>
+          <input id="delay" type="number" min="0" max="5000" value="100">
+          <span class="hint">بالمللي ثانية (ms)</span>
+        </div>
+        <div class="field">
+          <label for="timeout">مهلة الصفحة الواحدة</label>
+          <input id="timeout" type="number" min="3" max="60" value="15">
+          <span class="hint">بالثواني</span>
+        </div>
+        <div class="switches">
+          <label class="switch">
+            <input id="sitemap" type="checkbox" checked>
+            <span class="track"></span>
+            <span class="lbl">تضمين روابط sitemap.xml</span>
+          </label>
+          <label class="switch">
+            <input id="robots" type="checkbox" checked>
+            <span class="track"></span>
+            <span class="lbl">احترام قواعد robots.txt</span>
+          </label>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <section class="card" id="runCard" hidden>
+    <div class="run-head">
+      <div class="run-title">
+        <span class="pulse" id="runPulse"></span>
+        <span id="statusText">جارٍ الزحف…</span>
+        <span class="pct" id="pct">0%</span>
+      </div>
+      <div class="current" id="current"></div>
+    </div>
+    <div class="progress" id="progress"><div class="bar" id="bar"></div></div>
+
+    <div class="stats">
+      <div class="stat c-mint"><b id="stCount">0</b><span>صفحة مفحوصة</span></div>
+      <div class="stat"><b id="stQueue">0</b><span>في قائمة الانتظار</span></div>
+      <div class="stat c-green"><b id="stOk">0</b><span>ناجحة · 2xx</span></div>
+      <div class="stat c-amber"><b id="stRedir">0</b><span>تحويلات · 3xx</span></div>
+      <div class="stat c-red"><b id="stHttpErr">0</b><span>أخطاء · 4xx/5xx</span></div>
+      <div class="stat c-gray"><b id="stConnErr">0</b><span>فشل اتصال</span></div>
+      <div class="stat"><b id="stAvg">—</b><span>متوسط الاستجابة</span></div>
+      <div class="stat c-mint"><b id="stMap">0</b><span>من sitemap</span></div>
+      <div class="stat"><b id="stNoindex">0</b><span>صفحات noindex</span></div>
+      <div class="stat c-amber"><b id="stCanonDiff">0</b><span>canonical مختلف</span></div>
+      <div class="stat c-gray"><b id="stTime">00:00</b><span>الزمن المنقضي</span></div>
+      <div class="stat c-mint"><b id="stSpeed">—</b><span>صفحة / ثانية</span></div>
+    </div>
+
+    <div class="run-actions">
+      <button class="btn-ghost danger" id="cancelBtn" type="button">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        إيقاف الزحف
+      </button>
+      <button class="btn-ghost mint" id="csvBtn" type="button" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        تصدير CSV
+      </button>
+      <button class="btn-ghost mint" id="jsonBtn" type="button" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        تصدير JSON
+      </button>
+    </div>
+  </section>
+
+  <section class="card" id="resultsCard" hidden>
+    <div class="results-head">
+      <h2>الصفحات المكتشفة <span class="count" id="summary"></span></h2>
+      <div class="head-tools">
+        <div class="search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="search" type="text" placeholder="ابحث في الروابط والعناوين…">
+        </div>
+        <select class="sort" id="sort" title="ترتيب النتائج">
+          <option value="order">الترتيب: الافتراضي</option>
+          <option value="slow">الأبطأ استجابة</option>
+          <option value="fast">الأسرع استجابة</option>
+          <option value="big">الأكبر حجماً</option>
+          <option value="links">الأكثر روابط</option>
+          <option value="errors">الأخطاء أولاً</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="filters" id="filters">
+      <button class="chip active" data-f="all">الكل <span class="n" id="fAll">0</span></button>
+      <button class="chip" data-f="ok">ناجحة <span class="n" id="fOk">0</span></button>
+      <button class="chip" data-f="redir">تحويلات <span class="n" id="fRedir">0</span></button>
+      <button class="chip" data-f="httperr">أخطاء HTTP <span class="n" id="fHttpErr">0</span></button>
+      <button class="chip" data-f="connerr">فشل اتصال <span class="n" id="fConnErr">0</span></button>
+      <button class="chip" data-f="noindex">noindex <span class="n" id="fNoindex">0</span></button>
+      <button class="chip" data-f="canon">canonical مختلف <span class="n" id="fCanon">0</span></button>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>الرابط</th>
+            <th>الحالة</th>
+            <th>العنوان</th>
+            <th>الاستجابة</th>
+            <th>الحجم</th>
+            <th>روابط</th>
+            <th>المصدر</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="empty" id="emptyState" hidden>لا توجد نتائج مطابقة لهذا الفلتر أو البحث</div>
+      <div class="cap-note" id="capNote" hidden></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    الزحف يبقى داخل <b>نفس النطاق</b> فقط، ولا يقرأ ملفات الصور أو CSS أو JS كصفحات.
+    احترام <b>robots.txt</b> مفعّل افتراضياً — استخدم الأداة على مواقع تملكها أو لديك إذن بفحصها.
+  </footer>
+
+</main>
+
+<div class="toast" id="toast" role="alert"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const fmt = n => Number(n || 0).toLocaleString("en-US");
+const fmtBytes = b => { b = Number(b)||0; if (b >= 1048576) return (b/1048576).toFixed(1)+" MB"; if (b >= 1024) return Math.round(b/1024)+" KB"; return b+" B"; };
+const fmtClock = ms => { const s = Math.floor(ms/1000); return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); };
+const msClass = ms => ms < 500 ? "ms-fast" : ms < 1500 ? "ms-mid" : "ms-slow";
+
+let jobId = null, pollTimer = null, clockTimer = null;
+let state = { filter:"all", query:"", sort:"order", running:false, startedAt:0 };
+const RENDER_CAP = 1500;
+
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove("show"), 3800);
+}
+
+/* ------------------------------ classification ----------------------------- */
+const cls = r => r.status === 0 ? "connerr" : r.status < 300 ? "ok" : r.status < 400 ? "redir" : "httperr";
+
+function counts(rows){
+  return {
+    all: rows.length,
+    ok: rows.filter(r => cls(r)==="ok").length,
+    redir: rows.filter(r => cls(r)==="redir").length,
+    httperr: rows.filter(r => cls(r)==="httperr").length,
+    connerr: rows.filter(r => cls(r)==="connerr").length,
+    noindex: rows.filter(r => r.noindex).length,
+    canon: rows.filter(r => r.canonical && !r.canonicalMatch && r.status>=200 && r.status<400).length
+  };
+}
+
+/* --------------------------------- render --------------------------------- */
+function statusPill(r){
+  if (r.status === 0) return `<span class="pill fail">ERR</span><span class="sub">${esc(r.error||"")}</span>`;
+  const c = r.status < 300 ? "ok" : r.status < 400 ? "redir" : "err";
+  return `<span class="pill ${c}">${r.status}</span>`;
+}
+
+function rowHtml(r, i){
+  const badges = [];
+  if (r.noindex) badges.push(`<span class="badge noindex">noindex</span>`);
+  if (r.canonical && !r.canonicalMatch && r.status >= 200 && r.status < 400) badges.push(`<span class="badge canon">canonical مختلف</span>`);
+  if (r.source === "sitemap.xml") badges.push(`<span class="badge map">sitemap</span>`);
+  const finalLine = r.redirected && r.finalUrl ? `<span class="u final"><b>↪</b> ${esc(r.finalUrl)}</span>` : "";
+  const timeCell = r.status === 0 ? "—" : `<span class="${msClass(r.timeMs)}">${fmt(r.timeMs)} ms</span>`;
+  const src = r.source === "sitemap.xml" ? "sitemap" : (r.source ? "رابط داخلي" : "البداية");
+  return `<tr>
+    <td class="idx">${i+1}</td>
+    <td class="urlcell"><span class="u">${esc(r.url)}</span>${finalLine}${badges.length?`<span class="badges">${badges.join("")}</span>`:""}</td>
+    <td>${statusPill(r)}</td>
+    <td class="titlecell"><span class="t">${esc(r.title)}</span></td>
+    <td class="num">${timeCell}</td>
+    <td class="num">${r.status===0?"—":fmtBytes(r.bytes)}</td>
+    <td class="num">${r.status===0?"—":fmt(r.internal)}</td>
+    <td style="font-size:11px;color:var(--dim);white-space:nowrap">${src}</td>
+  </tr>`;
+}
+
+function applyView(rows){
+  let out = rows;
+  if (state.filter !== "all"){
+    if (state.filter === "canon") out = out.filter(r => r.canonical && !r.canonicalMatch && r.status>=200 && r.status<400);
+    else if (state.filter === "noindex") out = out.filter(r => r.noindex);
+    else out = out.filter(r => cls(r) === state.filter);
+  }
+  if (state.query){
+    const q = state.query.toLowerCase();
+    out = out.filter(r => (r.url+" "+(r.title||"")).toLowerCase().includes(q));
+  }
+  const s = state.sort;
+  if (s !== "order"){
+    const arr = [...out];
+    const errRank = r => r.status===0?0 : r.status>=400?1 : r.status>=300?2 : 3;
+    const cmp = {
+      slow:   (a,b)=>b.timeMs-a.timeMs,
+      fast:   (a,b)=>a.timeMs-b.timeMs,
+      big:    (a,b)=>b.bytes-a.bytes,
+      links:  (a,b)=>b.internal-a.internal,
+      errors: (a,b)=>errRank(a)-errRank(b) || b.timeMs-a.timeMs
+    }[s];
+    arr.sort(cmp);
+    out = arr;
+  }
+  return out;
+}
+
+let lastRenderedKey = "";
+function renderTable(rows){
+  const c = counts(rows);
+  $("fAll").textContent = fmt(c.all); $("fOk").textContent = fmt(c.ok);
+  $("fRedir").textContent = fmt(c.redir); $("fHttpErr").textContent = fmt(c.httperr);
+  $("fConnErr").textContent = fmt(c.connerr); $("fNoindex").textContent = fmt(c.noindex);
+  $("fCanon").textContent = fmt(c.canon);
+
+  const view = applyView(rows);
+  const key = [view.length, rows.length, state.filter, state.query, state.sort].join("|");
+  if (key === lastRenderedKey) return;
+  lastRenderedKey = key;
+
+  const shown = view.slice(0, RENDER_CAP);
+  $("tbody").innerHTML = shown.map(rowHtml).join("");
+  $("emptyState").hidden = view.length > 0;
+  $("capNote").hidden = view.length <= RENDER_CAP;
+  if (view.length > RENDER_CAP) $("capNote").textContent = `يُعرض أول ${fmt(RENDER_CAP)} صف من أصل ${fmt(view.length)} — صدّر CSV أو JSON للحصول على القائمة الكاملة.`;
+}
+
+function render(data){
+  const rows = data.results || [];
+  $("summary").textContent = `${fmt(rows.length)} / ${fmt(data.maxPages)}`;
+
+  const c = counts(rows);
+  $("stCount").textContent = fmt(rows.length);
+  $("stQueue").textContent = fmt(data.queued || 0);
+  $("stOk").textContent = fmt(c.ok);
+  $("stRedir").textContent = fmt(c.redir);
+  $("stHttpErr").textContent = fmt(c.httperr);
+  $("stConnErr").textContent = fmt(c.connerr);
+  $("stMap").textContent = fmt(data.fromSitemap || 0);
+  $("stNoindex").textContent = fmt(c.noindex);
+  $("stCanonDiff").textContent = fmt(c.canon);
+
+  const timed = rows.filter(r => r.status !== 0);
+  if (timed.length){
+    const avg = Math.round(timed.reduce((s,r)=>s+r.timeMs,0)/timed.length);
+    $("stAvg").textContent = fmt(avg)+" ms";
+    $("stAvg").className = msClass(avg);
+  }
+  const elapsed = (data.status==="running" ? Date.now() : (data.finishedAt || Date.now())) - data.startedAt;
+  $("stTime").textContent = fmtClock(Math.max(0, elapsed));
+  if (elapsed > 2000 && rows.length) $("stSpeed").textContent = (rows.length/(elapsed/1000)).toFixed(1);
+
+  $("current").textContent = data.phase || data.current || "";
+  const total = rows.length + (data.queued || 0);
+  const pct = data.status === "done" ? 100 : total ? Math.min(99, Math.round(rows.length/total*100)) : (data.phase ? 0 : 0);
+  $("bar").style.width = pct + "%";
+  $("pct").textContent = pct + "%";
+
+  const running = data.status === "running";
+  $("statusText").textContent =
+    data.phase ? data.phase :
+    running ? "جارٍ الزحف…" :
+    data.status === "done" ? "اكتمل الزحف بنجاح" :
+    data.status === "cancelled" ? "تم إيقاف الزحف" :
+    "حدث خطأ أثناء الزحف";
+  $("runPulse").classList.toggle("idle", !running);
+  $("progress").classList.toggle("done", !running);
+  $("cancelBtn").disabled = !running;
+  const exportable = !running && rows.length > 0;
+  $("csvBtn").disabled = !exportable;
+  $("jsonBtn").disabled = !exportable;
+
+  renderTable(rows);
+
+  if (!running){
+    stopClock();
+    $("liveChip").hidden = true;
+    if (pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+    if (data.status === "error" && data.error) toast(data.error);
+  }
+}
+
+/* ---------------------------------- clock ---------------------------------- */
+function startClock(){
+  stopClock();
+  state.startedAt = Date.now();
+  clockTimer = setInterval(() => {
+    const t = fmtClock(Date.now() - state.startedAt);
+    $("liveTimer").textContent = t;
+    $("stTime").textContent = t;
+  }, 1000);
+}
+function stopClock(){ if (clockTimer){ clearInterval(clockTimer); clockTimer = null; } }
+
+/* ---------------------------------- flow ----------------------------------- */
+async function poll(){
+  try {
+    const r = await fetch("/api/crawl/" + jobId);
+    const d = await r.json();
+    if (!r.ok){ clearInterval(pollTimer); pollTimer = null; stopClock(); $("liveChip").hidden = true; toast(d.error || "حدث خطأ"); return; }
+    render(d);
+  } catch { /* network hiccup — next tick retries */ }
+}
+
+$("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const rawUrl = $("url").value.trim();
+  if (!rawUrl){ toast("أدخل رابط الموقع أولاً"); $("url").focus(); return; }
+
+  $("startBtn").disabled = true;
+  lastRenderedKey = "";
+  $("tbody").innerHTML = "";
+  ["stCount","stQueue","stOk","stRedir","stHttpErr","stConnErr","stMap","stNoindex","stCanonDiff"].forEach(id => $(id).textContent = "0");
+  $("stAvg").textContent = "—"; $("stSpeed").textContent = "—"; $("stTime").textContent = "00:00";
+  $("bar").style.width = "0%"; $("pct").textContent = "0%";
+  $("runCard").hidden = false;
+  $("resultsCard").hidden = false;
+  $("csvBtn").disabled = true; $("jsonBtn").disabled = true;
+  $("runPulse").classList.remove("idle"); $("progress").classList.remove("done");
+  $("statusText").textContent = "جارٍ الاتصال…";
+  $("current").textContent = "";
+  $("runCard").scrollIntoView({ behavior:"smooth", block:"nearest" });
+
+  const body = {
+    url: rawUrl,
+    maxPages: $("maxPages").value,
+    concurrency: $("concurrency").value,
+    delay: $("delay").value,
+    timeout: Math.min(Math.max(Number($("timeout").value)||15, 3), 60) * 1000,
+    useSitemap: $("sitemap").checked,
+    respectRobots: $("robots").checked
+  };
+  try {
+    const r = await fetch("/api/crawl", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok){ toast(d.error || "تعذّر بدء الزحف"); return; }
+    jobId = d.id;
+    state.running = true;
+    $("liveChip").hidden = false;
+    startClock();
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(poll, 800);
+    poll();
+  } catch {
+    toast("تعذّر الاتصال بالخادم");
+  } finally {
+    $("startBtn").disabled = false;
+  }
+});
+
+$("cancelBtn").addEventListener("click", async () => {
+  if (!jobId) return;
+  $("cancelBtn").disabled = true;
+  try { await fetch("/api/crawl/" + jobId + "/cancel", { method:"POST" }); } catch {}
+});
+
+$("csvBtn").addEventListener("click", () => { if (jobId) location.href = "/api/crawl/" + jobId + "/csv"; });
+$("jsonBtn").addEventListener("click", () => { if (jobId) location.href = "/api/crawl/" + jobId + "/json"; });
+
+$("advToggle").addEventListener("click", () => {
+  const adv = $("adv");
+  const open = adv.classList.toggle("collapsed");
+  $("advToggle").classList.toggle("open", !open);
+  $("advToggle").setAttribute("aria-expanded", String(!open));
+});
+
+$("filters").addEventListener("click", e => {
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+  chip.classList.add("active");
+  state.filter = chip.dataset.f;
+  lastRenderedKey = "";
+  if (jobId) poll(); else renderTable([]);
+});
+
+let searchT;
+$("search").addEventListener("input", e => {
+  clearTimeout(searchT);
+  searchT = setTimeout(() => { state.query = e.target.value.trim(); lastRenderedKey = ""; if (jobId) poll(); }, 220);
+});
+$("sort").addEventListener("change", e => { state.sort = e.target.value; lastRenderedKey = ""; if (jobId) poll(); });
+</script>
+</body>
+</html>
